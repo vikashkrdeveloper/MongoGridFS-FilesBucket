@@ -42,6 +42,7 @@ $ node ./bin/www
 
 Connected to database: gridfs
 Base URL:http://localhost:8000
+```
 ````
 
 ## Usage
