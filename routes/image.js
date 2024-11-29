@@ -1,35 +1,19 @@
 const express = require('express');
 const imageRouter = express.Router();
-const mongoose = require('mongoose');
-const config = require('../config');
 const { addImageInDB, getAllImagesFromDB, deleteImageInDB, fetchMostRecentImage, uploadMultipleFiles, renderSingleImageOnBrowser, deletePerticularFileById } = require('../controllers/imageControllers');
-
 module.exports = (upload, app) => {
-    const url = config.mongoURI;
-    const connect = mongoose.createConnection(url, { useNewUrlParser: true, useUnifiedTopology: true });
-
-    let gfs;
-    connect.once('open', () => {
-        // initialize stream
-        gfs = new mongoose.mongo.GridFSBucket(connect.db, {
-            bucketName: "uploads"
-        });
-    });
-
-    app.set("ImageGridFs", gfs);
-
     //POST: Upload a single image/file to Image collection
-    imageRouter.route('/upload/image').post(upload.single('file'), addImageInDB);
-    imageRouter.route('/get-all-images').get(getAllImagesFromDB);
+    imageRouter.route('/assets/images/upload').post(upload.single('file'), addImageInDB);
+    imageRouter.route('/assets/get-all-images').get(getAllImagesFromDB);
 
     //GET: Delete an image from the collection
-    imageRouter.route('/image/delete/:id').post(deleteImageInDB);
+    imageRouter.route('/assets/images/delete/:id').post(deleteImageInDB);
 
     //GET: Fetch most recently added record
-    imageRouter.route('/image/recent').get(fetchMostRecentImage);
+    imageRouter.route('/assets/images/recent').get(fetchMostRecentImage);
 
     //POST: Upload multiple files upto 20
-    imageRouter.route('/multiple/image/upload').post(upload.array('files', 20), uploadMultipleFiles);
+    imageRouter.route('/assets/multiple/images/upload').post(upload.array('files', 20), uploadMultipleFiles);
 
     //GET: Fetches all the files in the uploads collection
     // imageRouter.route('/files')
@@ -76,10 +60,10 @@ module.exports = (upload, app) => {
     //     });
 
     //GET: Fetches a particular image and render on browser
-    imageRouter.route('/get-image/:filename').get(renderSingleImageOnBrowser);
+    imageRouter.route('/assets/images/content/:filename').get(renderSingleImageOnBrowser);
 
     //DELETE: Delete a particular file by an ID
-    imageRouter.route('/file/del/:id').post(deletePerticularFileById);
+    imageRouter.route('/assets/images/file/del/:id').post(deletePerticularFileById);
 
     return imageRouter;
 };
