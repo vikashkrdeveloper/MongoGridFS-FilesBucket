@@ -1,8 +1,12 @@
 const responseObjects = require("../helpers/response-objects");
 const Image = require("../models/image");
+const gfsFun = require("../config/gridfs");
 
 const addImageInDB = async (req, res) => {
     try {
+        if (!req.file) {
+            return responseObjects.badRequest(res, null, 'No file found', 'No file found');
+        }
         const isCaptionImageIsExist = await Image.findOne({ caption: req.body.caption });
         if (isCaptionImageIsExist) {
             return responseObjects.conflict(res, null, 'Image already exists', "Image already exists");
@@ -73,34 +77,76 @@ const uploadMultipleFiles = async (req, res) => {
     }
 }
 
+// const renderSingleImageOnBrowser = async (req, res) => {
+//     try {
+//         const fileName = req.params.filename;
+//         const gfs = gfsFun.getGridFS();
+//         if (!fileName) {
+//             return responseObjects.badRequest(res, null, 'No file name found', 'No file name found');
+//         }
+//         const findFile = await Image.findOne({ filename: fileName });
+//         if (!findFile) {
+//             return responseObjects.notFound(res, null, 'File not found', 'File not found');
+//         }
+//         if (!gfs) {
+//             return responseObjects.serverError(res, {}, "Gridfs image not found", "Gridfs image not found")
+//         }
+//         console.log('gfs', gfs);
+
+//         gfs.find({ filename: fileName }).toArray((err, files) => {
+//             if (!files[0] || files.length === 0) {
+//                 return res.status(200).json({
+//                     success: false,
+//                     message: 'No files available',
+//                 });
+//             }
+//             if (files[0].contentType === 'image/jpeg' || files[0].contentType === 'image/png' || files[0].contentType === 'image/svg+xml') {
+//                 gfs.openDownloadStreamByName(fileName).pipe(res);
+//             } else {
+//                 return responseObjects.badRequest(res, null, 'File is not an image', 'File is not an image');
+//             }
+//         });
+//     } catch (error) {
+//         return responseObjects.error(res, error.message, 'Internal server error', 'Internal server error');
+//     }
+// }
 const renderSingleImageOnBrowser = async (req, res) => {
     try {
         const fileName = req.params.filename;
+        const gfs = gfsFun.getGridFS();
+
         if (!fileName) {
             return responseObjects.badRequest(res, null, 'No file name found', 'No file name found');
         }
-        const gfs = req.ImageGridFs;
-        gfs.find({ filename: fileName }).toArray((err, files) => {
-            if (!files[0] || files.length === 0) {
-                return res.status(200).json({
-                    success: false,
-                    message: 'No files available',
-                });
-            }
 
-            if (files[0].contentType === 'image/jpeg' || files[0].contentType === 'image/png' || files[0].contentType === 'image/svg+xml') {
-                gfs.openDownloadStreamByName(fileName).pipe(res);
-            } else {
-                return responseObjects.badRequest(res, null, 'File is not an image', 'File is not an image');
-            }
-        });
+        const findFile = await Image.findOne({ filename: fileName });
+        if (!findFile) {
+            return responseObjects.notFound(res, null, 'File not found', 'File not found');
+        }
+
+        if (!gfs) {
+            return responseObjects.serverError(res, {}, "GridFS not found", "GridFS not found");
+        }
+        const file = await gfs.find({ filename: fileName }).toArray();
+        if (!file[0]) {
+            return responseObjects.notFound(res, null, 'File not found in GridFS', 'File not found in GridFS');
+        }
+        if (['image/jpeg', 'image/png', 'image/svg+xml'].includes(file[0].contentType)) {
+            const downloadStream = gfs.openDownloadStreamByName(fileName);
+            res.setHeader('Content-Type', file[0].contentType);
+            downloadStream.pipe(res);
+        } else {
+            return responseObjects.badRequest(res, null, 'File is not a supported image type', 'File is not a supported image type');
+        }
     } catch (error) {
-        return responseObjects.error(res, error, 'Internal server error', 'Internal server error');
+        console.error(error);
+        return responseObjects.error(res, error.message || 'Internal Server Error', 'Internal server error', 'Internal server error');
     }
 }
+
 const deletePerticularFileById = async (req, res) => {
     try {
-        const gfs = req.ImageGridFs;
+        const gfs = gfsFun.getGridFS();
         gfs.delete(new mongoose.Types.ObjectId(req.params.id), (err, data) => {
             if (err) {
                 return responseObjects.error(res, err, 'Internal server error', 'Internal server error');

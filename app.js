@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const cors = require('cors');
 
 const imageRouter = require('./routes/image');
+const pdfRouter = require('./routes/pdf');
 
 const app = express();
 
@@ -29,6 +30,8 @@ app.use(methodOverride('_method'));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const mongoose = require('mongoose');
+const { initGridFS } = require('./config/gridfs');
+const apiProtection = require('./middleware');
 mongoose.Promise = require('bluebird');
 
 const url = config.mongoURI;
@@ -40,8 +43,9 @@ const connect = mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopolog
 
 // connect to the database
 connect.then(() => {
-    console.log(`\nConnected to database: gridfs\nBase URL:http://localhost:${process.env.PORT || '9890'}`);
+    console.log(`\nConnected to database: gridfs\nBase URL:http://localhost:${process.env.PORT || '8000'}`);
 }, (err) => console.log(`Error connecting to database: ${err}`));
+initGridFS();
 
 //GridFs Configuration
 
@@ -67,7 +71,8 @@ const storage = new GridFsStorage({
 
 const upload = multer({ storage });
 
-app.use('/', imageRouter(upload, app));
+app.use('/', apiProtection, imageRouter(upload, app));
+app.use('/', apiProtection, pdfRouter(upload, app));
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
